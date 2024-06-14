@@ -4,6 +4,9 @@ import { APIChain } from 'langchain/chains'
 import { getBaseClasses } from '../../../src/utils'
 import { ICommonObject, INode, INodeData, INodeParams } from '../../../src/Interface'
 import { ConsoleCallbackHandler, CustomChainHandler, additionalCallbacks } from '../../../src/handler'
+import { BaseLLMOutputParser, BaseOutputParser } from '@langchain/core/output_parsers'
+import { OutputFixingParser } from 'langchain/output_parsers'
+import { injectOutputParser } from '../../outputparsers/OutputParserHelpers'
 
 export const API_URL_RAW_PROMPT_TEMPLATE = `You are given the below API Documentation:
 {api_docs}
@@ -26,6 +29,7 @@ class GETApiChain_Chains implements INode {
     baseClasses: string[]
     description: string
     inputs: INodeParams[]
+    outputParser: BaseOutputParser
 
     constructor() {
         this.label = 'GET API Chain'
@@ -41,6 +45,12 @@ class GETApiChain_Chains implements INode {
                 label: 'Language Model',
                 name: 'model',
                 type: 'BaseLanguageModel'
+            },
+            {
+                label: 'Output Parser',
+                name: 'outputParser',
+                type: 'BaseLLMOutputParser',
+                optional: true
             },
             {
                 label: 'API Documentation',
@@ -85,8 +95,17 @@ class GETApiChain_Chains implements INode {
         const headers = nodeData.inputs?.headers as string
         const urlPrompt = nodeData.inputs?.urlPrompt as string
         const ansPrompt = nodeData.inputs?.ansPrompt as string
+        const outputParser = nodeData.inputs?.outputParser as BaseOutputParser
+        console.log('llmOutputParser FELIIII', outputParser)
+        this.outputParser = outputParser
+        if (outputParser) {
+            let autoFix = (outputParser as any).autoFix
+            if (autoFix === true) {
+                this.outputParser = OutputFixingParser.fromLLM(model, outputParser)
+            }
+        }
 
-        const chain = await getAPIChain(apiDocs, model, headers, urlPrompt, ansPrompt)
+        const chain = await getAPIChain(apiDocs, model, outputParser, headers, urlPrompt, ansPrompt)
         return chain
     }
 
@@ -96,23 +115,46 @@ class GETApiChain_Chains implements INode {
         const headers = nodeData.inputs?.headers as string
         const urlPrompt = nodeData.inputs?.urlPrompt as string
         const ansPrompt = nodeData.inputs?.ansPrompt as string
+        // let promptValues: ICommonObject | undefined = nodeData.inputs?.prompt.promptValues as ICommonObject
 
-        const chain = await getAPIChain(apiDocs, model, headers, urlPrompt, ansPrompt)
+        const outputParser = nodeData.inputs?.outputParser as BaseOutputParser
+        if (!this.outputParser && outputParser) {
+            this.outputParser = outputParser
+        }
+        console.log('llmOutputParser', outputParser)
+        console.log('this.llmOutputParser', this.outputParser)
+
+        const chain = await getAPIChain(apiDocs, model, outputParser, headers, urlPrompt, ansPrompt)
+        // promptValues = injectOutputParser(this.outputParser, chain.apiAnswerChain, promptValues)
+
         const loggerHandler = new ConsoleCallbackHandler(options.logger)
         const callbacks = await additionalCallbacks(nodeData, options)
 
+        let res
         if (options.socketIO && options.socketIOClientId) {
             const handler = new CustomChainHandler(options.socketIO, options.socketIOClientId, 2)
-            const res = await chain.run(input, [loggerHandler, handler, ...callbacks])
-            return res
+            res = await chain.run(input, [loggerHandler, handler, ...callbacks])
         } else {
-            const res = await chain.run(input, [loggerHandler, ...callbacks])
-            return res
+            res = await chain.run(input, [loggerHandler, ...callbacks])
         }
+
+        let finalRes = res
+        if (this.outputParser && typeof res === 'object' && Object.prototype.hasOwnProperty.call(res, 'json')) {
+            finalRes = (res as ICommonObject).json
+        }
+
+        return finalRes
     }
 }
 
-const getAPIChain = async (documents: string, llm: BaseLanguageModel, headers: string, urlPrompt: string, ansPrompt: string) => {
+const getAPIChain = async (
+    documents: string,
+    llm: BaseLanguageModel,
+    outputParser: BaseLLMOutputParser,
+    headers: string,
+    urlPrompt: string,
+    ansPrompt: string
+) => {
     const apiUrlPrompt = new PromptTemplate({
         inputVariables: ['api_docs', 'question'],
         template: urlPrompt ? urlPrompt : API_URL_RAW_PROMPT_TEMPLATE
@@ -122,13 +164,19 @@ const getAPIChain = async (documents: string, llm: BaseLanguageModel, headers: s
         inputVariables: ['api_docs', 'question', 'api_url', 'api_response'],
         template: ansPrompt ? ansPrompt : API_RESPONSE_RAW_PROMPT_TEMPLATE
     })
+    if (outputParser) {
+        console.log('outputParser in GETAPICHAIN', outputParser)
+    }
 
     const chain = APIChain.fromLLMAndAPIDocs(llm, documents, {
         apiUrlPrompt,
         apiResponsePrompt,
+        outputParser,
         verbose: process.env.DEBUG === 'true' ? true : false,
         headers: typeof headers === 'object' ? headers : headers ? JSON.parse(headers) : {}
     })
+    console.log('chain in GETAPICHAIN', chain)
+
     return chain
 }
 

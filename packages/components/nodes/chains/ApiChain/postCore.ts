@@ -4,6 +4,8 @@ import { BaseChain, ChainInputs, LLMChain, SerializedAPIChain } from 'langchain/
 import { BasePromptTemplate, PromptTemplate } from '@langchain/core/prompts'
 import { ChainValues } from '@langchain/core/utils/types'
 import fetch from 'node-fetch'
+import { BaseLLMOutputParser, BaseOutputParser } from '@langchain/core/output_parsers'
+import { injectOutputParser } from '../../outputparsers/OutputParserHelpers'
 
 export const API_URL_RAW_PROMPT_TEMPLATE = `You are given the below API Documentation:
 {api_docs}
@@ -50,6 +52,7 @@ export type APIChainOptions = {
     headers?: Record<string, string>
     apiUrlPrompt?: BasePromptTemplate
     apiResponsePrompt?: BasePromptTemplate
+    outputParser?: BaseOutputParser
 }
 
 export class APIChain extends BaseChain implements APIChainInput {
@@ -149,9 +152,17 @@ export class APIChain extends BaseChain implements APIChainInput {
         apiDocs: string,
         options: APIChainOptions & Omit<APIChainInput, 'apiAnswerChain' | 'apiRequestChain' | 'apiDocs'> = {}
     ): APIChain {
-        const { apiUrlPrompt = defaultApiUrlPrompt, apiResponsePrompt = defaultApiResponsePrompt } = options
+        const { apiUrlPrompt = defaultApiUrlPrompt, apiResponsePrompt = defaultApiResponsePrompt, outputParser = undefined } = options
         const apiRequestChain = new LLMChain({ prompt: apiUrlPrompt, llm })
-        const apiAnswerChain = new LLMChain({ prompt: apiResponsePrompt, llm })
+        let promptValues = apiResponsePrompt
+        if (outputParser) {
+            promptValues = injectOutputParser(outputParser, apiRequestChain, apiResponsePrompt)
+        }
+        const apiAnswerChain = new LLMChain({
+            prompt: apiResponsePrompt,
+            llm,
+            outputParser: outputParser
+        })
         return new this({
             apiAnswerChain,
             apiRequestChain,

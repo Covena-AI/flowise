@@ -65,6 +65,13 @@
                         "name": "model",
                         "type": "BaseLanguageModel",
                         "id": "getApiChain_0-input-model-BaseLanguageModel"
+                    },
+                    {
+                        "label": "Output Parser",
+                        "name": "outputParser",
+                        "type": "BaseLLMOutputParser",
+                        "optional": true,
+                        "id": "getApiChain_0-input-outputParser-BaseLLMOutputParser"
                     }
                 ],
                 "inputs": {
