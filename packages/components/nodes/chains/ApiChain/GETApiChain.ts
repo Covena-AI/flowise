@@ -137,6 +137,7 @@ class GETApiChain_Chains implements INode {
         } else {
             res = await chain.run(input, [loggerHandler, ...callbacks])
         }
+        console.log('res in RUN', res)
 
         let finalRes = res
         if (this.outputParser && typeof res === 'object' && Object.prototype.hasOwnProperty.call(res, 'json')) {
@@ -165,7 +166,7 @@ const getAPIChain = async (
         template: ansPrompt ? ansPrompt : API_RESPONSE_RAW_PROMPT_TEMPLATE
     })
     if (outputParser) {
-        console.log('outputParser in GETAPICHAIN', outputParser)
+        // console.log('outputParser in GETAPICHAIN', outputParser)
     }
 
     const chain = APIChain.fromLLMAndAPIDocs(llm, documents, {
@@ -175,7 +176,7 @@ const getAPIChain = async (
         verbose: process.env.DEBUG === 'true' ? true : false,
         headers: typeof headers === 'object' ? headers : headers ? JSON.parse(headers) : {}
     })
-    console.log('chain in GETAPICHAIN', chain)
+    // console.log('chain in GETAPICHAIN', chain)
 
     return chain
 }

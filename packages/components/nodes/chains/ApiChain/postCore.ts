@@ -154,14 +154,14 @@ export class APIChain extends BaseChain implements APIChainInput {
     ): APIChain {
         const { apiUrlPrompt = defaultApiUrlPrompt, apiResponsePrompt = defaultApiResponsePrompt, outputParser = undefined } = options
         const apiRequestChain = new LLMChain({ prompt: apiUrlPrompt, llm })
-        let promptValues = apiResponsePrompt
-        if (outputParser) {
-            promptValues = injectOutputParser(outputParser, apiRequestChain, apiResponsePrompt)
-        }
+        // let promptValues = apiResponsePrompt
+        // if (outputParser) {
+        //     promptValues = injectOutputParser(outputParser, apiRequestChain, apiResponsePrompt)
+        // }
         const apiAnswerChain = new LLMChain({
             prompt: apiResponsePrompt,
-            llm,
-            outputParser: outputParser
+            llm
+            // outputParser: outputParser
         })
         return new this({
             apiAnswerChain,
