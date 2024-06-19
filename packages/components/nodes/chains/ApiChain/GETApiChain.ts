@@ -6,7 +6,7 @@ import { ICommonObject, INode, INodeData, INodeParams } from '../../../src/Inter
 import { ConsoleCallbackHandler, CustomChainHandler, additionalCallbacks } from '../../../src/handler'
 import { BaseLLMOutputParser, BaseOutputParser } from '@langchain/core/output_parsers'
 import { OutputFixingParser } from 'langchain/output_parsers'
-import { injectOutputParser } from '../../outputparsers/OutputParserHelpers'
+// import { injectOutputParser } from '../../outputparsers/OutputParserHelpers' FELI
 
 export const API_URL_RAW_PROMPT_TEMPLATE = `You are given the below API Documentation:
 {api_docs}
@@ -121,8 +121,8 @@ class GETApiChain_Chains implements INode {
         if (!this.outputParser && outputParser) {
             this.outputParser = outputParser
         }
-        console.log('llmOutputParser', outputParser)
-        console.log('this.llmOutputParser', this.outputParser)
+        console.log('llmOutputParser in RUN FELII', outputParser)
+        console.log('this.llmOutputParser FELII', this.outputParser)
 
         const chain = await getAPIChain(apiDocs, model, outputParser, headers, urlPrompt, ansPrompt)
         // promptValues = injectOutputParser(this.outputParser, chain.apiAnswerChain, promptValues)
@@ -137,7 +137,7 @@ class GETApiChain_Chains implements INode {
         } else {
             res = await chain.run(input, [loggerHandler, ...callbacks])
         }
-        console.log('res in RUN', res)
+        console.log('res in RUN FELIII', res)
 
         let finalRes = res
         if (this.outputParser && typeof res === 'object' && Object.prototype.hasOwnProperty.call(res, 'json')) {
@@ -166,8 +166,11 @@ const getAPIChain = async (
         template: ansPrompt ? ansPrompt : API_RESPONSE_RAW_PROMPT_TEMPLATE
     })
     if (outputParser) {
-        // console.log('outputParser in GETAPICHAIN', outputParser)
+        console.log('outputParser in GETAPICHAIN FELIII', outputParser)
     }
+
+    // TODO FELI: outputParser is not being passed to the APIChain (lbh tepatnya dr APIChain gbs di-console log so idk if it's being passed or not)
+    // Look at postCore.ts
 
     const chain = APIChain.fromLLMAndAPIDocs(llm, documents, {
         apiUrlPrompt,
@@ -176,7 +179,7 @@ const getAPIChain = async (
         verbose: process.env.DEBUG === 'true' ? true : false,
         headers: typeof headers === 'object' ? headers : headers ? JSON.parse(headers) : {}
     })
-    // console.log('chain in GETAPICHAIN', chain)
+    console.log('chain in GETAPICHAIN FELIII', chain)
 
     return chain
 }
